@@ -8,44 +8,37 @@ import Control.Monad.Reader (asks)
 import Data.Binary.Base64 as Base64
 import Data.Either (Either(..), note)
 import Data.TextDecoder (decodeUtf8)
-import Data.User (Users, mkUser)
+import Data.User (Users, User, mkUser)
 import Effect.Aff (Aff)
 import Effect.Aff.Class (liftAff)
 import Effect.Exception (error)
 import Node.Jwt (Secret(..))
-import Swerve.API.Combinators (type (:>), type (:<|>), (:<|>))
-import Swerve.API.Header (Header)
-import Swerve.API.MediaType (JSON, PlainText)
-import Swerve.API.Name (type (:=))
-import Swerve.API.Resource (Resource)
-import Swerve.API.Verb (Get, Post)
-import Swerve.Server.Internal.Handler (Handler)
-import Swerve.Server.Internal.ServerError (err400, err401, err501)
-import Utils (generateToken, parseBasicAuth)
+import Swerve.API
+import Swerve.Server
+import Swerve.Server (lift, eval) as Server
+import Utils (generateToken)
+import Type.Proxy
 
 type SecretToken = String 
-type LoginAPI = "loginAPI" := (Login :<|> Logout)
+type LoginAPI = (BasicAuth "user" User :> Login) :<|> Logout
 
+type Authorization = String 
 type Login 
-  =  Post "/login" 
-  :> Header "authorization" String 
-  :> Resource String PlainText
+  =  "login" 
+  :> Post JSON (Ok String + Nil)
 
 type Logout
-  =  Post "/logout" 
+  =  "logout" 
   :> Header "authorization" String 
-  :> Resource String PlainText
+  :> Get JSON (Ok String + Nil)
 
-login :: SecretToken -> Handler Login String
-login secret = do 
-  encAuth <- asks $ _.header.authorization
-  let decAuth = Base64.decode encAuth >>= decodeUtf8 >>= (note (error "Failed to parse Authentication") <<<  parseBasicAuth)
-  case decAuth of
-    Left e -> throwError err400
-    Right auth -> do 
-      liftAff $ generateToken (Secret secret) 
+loginAPI :: SecretToken -> Server LoginAPI
+loginAPI secret = Server.lift (login :<|> logout) 
+  where 
+    logout :: Authorization -> Handler (Ok String + Nil)
+    logout hdr = pure <<< respond (Proxy :: _ Ok') $ "logout"
 
-logout :: Handler Logout String
-logout = throwError $ err501
-
-loginAPI secretToken = login secretToken :<|> logout
+    login :: User -> Handler (Ok String + Nil)
+    login user = do 
+      token <- liftAff $ generateToken (Secret secret)
+      pure <<< respond (Proxy :: _ Ok') $ token

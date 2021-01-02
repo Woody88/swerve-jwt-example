@@ -2,25 +2,24 @@ module API.User where
 
 import Prelude
 
-import Data.User (Users, mkUser)
-import Node.Jwt (Verified, Token)
-import Swerve.API.Capture (Capture)
-import Swerve.API.Combinators (type (:>), type (:<|>), (:<|>))
-import Swerve.API.Guard (Guard)
-import Swerve.API.MediaType (JSON, PlainText)
-import Swerve.API.Name (type (:=))
-import Swerve.API.Resource (Resource)
-import Swerve.API.Verb (Get)
-import Swerve.Server.Internal.Handler (Handler)
+import Data.User (Users, User, mkUser)
+-- import Node.Jwt (Verified, Token)
+import Swerve.API 
+import Swerve.Server 
+import Swerve.Server (lift) as Server
+import Type.Proxy (Proxy(..))
 
-type UserAPI = "userAPI" := Guard "verifiedToken" (Token () Verified) :> GetUsers
+type UserAPI = "users" :> (GetUsers :<|> GetUser)
 
-type GetUsers 
-  =  Get "/users" 
-  :> Resource Users JSON
+type UserId = Int 
+type GetUsers = Get JSON (Ok Users + Nil)
+type GetUser  = Capture "userId" UserId :> Get JSON (Ok User + Nil)
 
-getUsers :: Handler GetUsers Users
-getUsers = pure [ mkUser "1" "Woodson", mkUser "2" "Thomas" ]
+userAPI :: Server UserAPI
+userAPI = Server.lift (users :<|> user) 
+  where 
+    users :: Handler (Ok Users + Nil)
+    users = pure <<< respond (Proxy :: _ Ok') $ [ mkUser 1 "Woodson", mkUser 2 "Thomas" ]
 
-userAPI :: Token () Verified -> Handler GetUsers Users
-userAPI token = getUsers
+    user :: UserId -> Handler (Ok User + Nil)
+    user id = pure <<< respond (Proxy :: _ Ok') $ mkUser id "Woodson"

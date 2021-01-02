@@ -1,10 +1,17 @@
 module API where 
 
-import API.Login (LoginAPI, loginAPI)
 import API.User (UserAPI, userAPI)
-import Swerve.API.Combinators (type (:<|>), (:<|>))
+import API.Login (LoginAPI, loginAPI)
+import Config 
+import Swerve.API 
+import Swerve.Server (Server)
+import Swerve.Server (eval) as Server
+import Type.Proxy (Proxy(..))
 
   
-type API = LoginAPI :<|> UserAPI
+type API = UserAPI :<|> LoginAPI
 
-api config = { loginAPI: loginAPI config.secretToken, userAPI }
+_API = Proxy :: _ API
+
+api :: Config -> Server API
+api cfg = Server.eval (userAPI :<|> loginAPI cfg.secretToken)

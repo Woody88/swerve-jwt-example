@@ -9,7 +9,7 @@ import Effect (Effect)
 import Effect.Class.Console as Console
 import Node.Process as Process
 import Type.Data.Row (RProxy(..))
-import TypedEnv (class ParseValue, type (<:), EnvError, envErrorMessage)
+import TypedEnv (class ParseValue, type (<:), EnvError)
 import TypedEnv as TypedEnv
 
 newtype Port = Port Int
